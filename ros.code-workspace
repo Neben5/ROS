@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "D:\\project_dumps\\linux"
+		},
+		{
+			"path": "D:\\project_dumps\\linux-0.12\\linux-0.12"
+		}
+	],
+	"settings": {
+		"git.ignoreLimitWarning": true
+	}
+}

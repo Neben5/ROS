@@ -1,9 +1,10 @@
+#![macro_use]
+
 use core::fmt; // string formatting
 use lazy_static::lazy_static; // global static objects, writer
 use spin::Mutex; // prevents races for writer
 use volatile::Volatile; // prevents compiler from ignoring vga register writes, since they're unsafe
 
-#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)] // inherited?
 #[repr(u8)] // u8
 pub enum Color {

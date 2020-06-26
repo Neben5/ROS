@@ -1,5 +1,6 @@
 #![macro_use]
 
+use crate::system::io::cpu_io::Port;
 use core::fmt; // string formatting
 use lazy_static::lazy_static; // global static objects, writer
 use spin::Mutex; // prevents races for writer
@@ -45,6 +46,11 @@ struct ScreenChar {
     color_code: ColorCode,
 }
 
+struct Pos {
+    x: usize,
+    y: usize,
+}
+
 const BUFFER_HEIGHT: usize = 25;
 const BUFFER_WIDTH: usize = 80;
 
@@ -53,11 +59,59 @@ struct Buffer {
     chars: [[Volatile<ScreenChar>; BUFFER_WIDTH]; BUFFER_HEIGHT], // char: array of ScreenChar's, [bufferwidth][bufferheight]
 }
 
+struct Cursor {
+    port_a: Port,
+    port_b: Port,
+    column_position: usize,
+}
+
+impl Cursor {
+    fn enable(&self) {
+        self.port_a.outb(0x0A);
+        self.port_b.outb(self.port_b.inb() & 0xE0 | 0);
+
+        self.port_a.outb(0x0B);
+        self.port_b.outb(self.port_b.inb() & 0xE0 | 15);
+    }
+
+    fn disable(&self) {
+        self.port_a.outb(0x0A);
+        self.port_b.outb(0x20);
+    }
+
+    fn move_cursor(&self, x: usize, y: usize) {
+        let pos: u16 = (y * BUFFER_WIDTH + x) as u16;
+
+        self.port_a.outb(0x0F);
+        self.port_b.outb((pos & 0xFF) as u8);
+        self.port_a.outb(0x0E);
+        self.port_b.outb(((pos >> 8) & 0xFF) as u8);
+    }
+
+    fn get_cursor(&self) -> Pos {
+        let mut pos: u16 = 0;
+        self.port_a.outb(0x0F);
+        pos |= self.port_b.inb() as u16;
+        self.port_a.outb(0x0E);
+        pos |= (self.port_a.inb() as u16) << 8;
+        return Pos {
+            x: (pos as usize) % (BUFFER_WIDTH),
+            y: (pos as usize) / (BUFFER_WIDTH),
+        };
+    }
+}
+
 pub struct Writer {
     column_position: usize,
     color_code: ColorCode,
     buffer: &'static mut Buffer,
+    cursor: Cursor,
+    /*
+    cursor_port_a: Port,
+    cursor_port_b: Port,
+    */
 }
+// TODO: make cursor separate struct
 
 impl Writer {
     pub fn write_byte(&mut self, byte: u8) {
@@ -78,12 +132,14 @@ impl Writer {
                     color_code,
                 });
                 self.column_position += 1; // next column pos
+                self.cursor.column_position += 1;
             }
         }
     }
 
     pub fn new_line(&mut self) {
         self.column_position = 0;
+        self.cursor.column_position = 0;
         for row in 1..BUFFER_HEIGHT {
             // start at 1, dont shift top up to missing register
             for col in 0..BUFFER_WIDTH {
@@ -128,6 +184,11 @@ lazy_static! {
         buffer: unsafe { &mut *(0xb8000 as *mut Buffer) }, // writing to this register is safe
                                                            // maps register to buffer struct, abstracts
                                                            // unsafeness away
+        cursor: unsafe {Cursor {
+            port_a: Port::new(0x3D4),
+            port_b: Port::new(0x3D5),
+            column_position: 0,
+        }},
     });
 }
 
@@ -147,6 +208,13 @@ macro_rules! print {
         $crate::vga_buffer::_print(format_args!($($arg)*));
     };
 
+}
+
+#[macro_export]
+macro_rules! disable_cursor {
+    () => {
+        $crate::vga_buffer::WRITER.lock().disable_cursor();
+    };
 }
 
 #[doc(hidden)]

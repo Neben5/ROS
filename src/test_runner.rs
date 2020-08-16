@@ -1,4 +1,5 @@
-use crate::system::io;
+use crate::system::io::cpu_io;
+
 #[cfg(test)]
 pub fn runner(tests: &[&dyn Fn()]) {
     // tests is a reference to a slice of objects with trait 'Fn()'
@@ -18,6 +19,7 @@ pub enum QemuExitCode {
 }
 
 pub fn exit_qemu(exit_code: QemuExitCode) {
-    let port = unsafe { io::cpu_io::Port::new(0xf4) };
-    port.outb(exit_code as u8);
+    unsafe {
+        cpu_io::outb(0xf4, exit_code as u8);
+    }
 }

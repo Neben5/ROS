@@ -14,24 +14,38 @@ mod system;
 mod test_runner;
 use system::TimeDate;
 
-// TODO: need to add exceptions >> paging >> virt mem >> fs >> usermode >> basic terminal >> proper vga
+// TODO: need to add exceptions >> paging >> virt mem >> fs >> usermode >> tty >> basic terminal >> proper vga
 
-#[no_mangle] // don't mangle the name of this function
+#[no_mangle] // don't mangle the name of this function at compile time so bootloader recognizes it
 pub extern "C" fn _start() -> ! {
     // entrypoint
     #[cfg(test)]
     test_main(); // test
-    let mut val = System!().time.get(TimeDate::Seconds);
+
+    // TODO: implement following (taken from linux 0.0.12):
+    //* mem_init(main_memory_start,memory_end); Need to implement virtmem and paging
+    //* trap_init(); //!Exceptions
+    //* blk_dev_init();
+    //* chr_dev_init();
+    //* tty_init(); tty will be painful
+    //* time_init(); half finished
+    //* sched_init(); Pain.
+    //* buffer_init(buffer_memory_end); finishing mem
+    //* hd_init(); lol drivers
+    //* floppy_init(); lol drivers
+    //* sti(); interrupts are not *that* important
+    //* move_to_user_mode(); usermodeeee
+
+    let mut val = system::CMOS.get(TimeDate::Seconds);
     loop {
-        let temp = System!().time.get(TimeDate::Seconds);
+        let temp = system::CMOS.get(TimeDate::Seconds);
         if temp != val {
             val = temp;
-            println!("{} : {}", System!().time.get(TimeDate::Minutes), val);
+            println!("{} : {}", system::CMOS.get(TimeDate::Minutes), val);
         }
     }
     // text mode cursor needs to be changed/disabled
 }
-
 /// This function is called on panic.
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {

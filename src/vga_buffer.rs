@@ -1,6 +1,6 @@
 #![macro_use]
 
-use crate::system::io::cpu_io::Port;
+use crate::system::io::cpu_io;
 use core::fmt; // string formatting
 use lazy_static::lazy_static; // global static objects, writer
 use spin::Mutex; // prevents races for writer
@@ -60,40 +60,45 @@ struct Buffer {
 }
 
 struct Cursor {
-    port_a: Port,
-    port_b: Port,
     column_position: usize,
 }
 
 impl Cursor {
     fn enable(&self) {
-        self.port_a.outb(0x0A);
-        self.port_b.outb(self.port_b.inb() & 0xE0 | 0);
+        unsafe {
+            cpu_io::outb(0x3D4, 0x0A);
+            cpu_io::outb(0x3D5, cpu_io::inb(0x3D5) & 0xE0 | 0);
 
-        self.port_a.outb(0x0B);
-        self.port_b.outb(self.port_b.inb() & 0xE0 | 15);
+            cpu_io::outb(0x3D4, 0x0B);
+            cpu_io::outb(0x3D5, cpu_io::inb(0x3D5) & 0xE0 | 15);
+        }
     }
 
     fn disable(&self) {
-        self.port_a.outb(0x0A);
-        self.port_b.outb(0x20);
+        unsafe {
+            cpu_io::outb(0x3D4, 0x0A);
+            cpu_io::outb(0x3D5, 0x20);
+        }
     }
 
     fn move_cursor(&self, x: usize, y: usize) {
         let pos: u16 = (y * BUFFER_WIDTH + x) as u16;
-
-        self.port_a.outb(0x0F);
-        self.port_b.outb((pos & 0xFF) as u8);
-        self.port_a.outb(0x0E);
-        self.port_b.outb(((pos >> 8) & 0xFF) as u8);
+        unsafe {
+            cpu_io::outb(0x3D4, 0x0F);
+            cpu_io::outb(0x3D5, (pos & 0xFF) as u8);
+            cpu_io::outb(0x3D4, 0x0E);
+            cpu_io::outb(0x3D5, ((pos >> 8) & 0xFF) as u8);
+        }
     }
 
     fn get_cursor(&self) -> Pos {
         let mut pos: u16 = 0;
-        self.port_a.outb(0x0F);
-        pos |= self.port_b.inb() as u16;
-        self.port_a.outb(0x0E);
-        pos |= (self.port_a.inb() as u16) << 8;
+        unsafe {
+            cpu_io::outb(0x3D4, 0x0F);
+            pos |= cpu_io::inb(0x3D5) as u16;
+            cpu_io::outb(0x3D4, 0x0E);
+            pos |= (cpu_io::inb(0x3D4) as u16) << 8;
+        }
         return Pos {
             x: (pos as usize) % (BUFFER_WIDTH),
             y: (pos as usize) / (BUFFER_WIDTH),
@@ -184,11 +189,9 @@ lazy_static! {
         buffer: unsafe { &mut *(0xb8000 as *mut Buffer) }, // writing to this register is safe
                                                            // maps register to buffer struct, abstracts
                                                            // unsafeness away
-        cursor: unsafe {Cursor {
-            port_a: Port::new(0x3D4),
-            port_b: Port::new(0x3D5),
+        cursor: Cursor {
             column_position: 0,
-        }},
+        },
     });
 }
 
@@ -207,7 +210,6 @@ macro_rules! print {
     ($($arg:tt)*) => {
         $crate::vga_buffer::_print(format_args!($($arg)*));
     };
-
 }
 
 #[macro_export]

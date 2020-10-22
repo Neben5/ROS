@@ -64,7 +64,7 @@ struct Cursor {
 }
 
 impl Cursor {
-    fn enable(&self) {
+    pub fn enable(&self) {
         unsafe {
             cpu_io::outb(0x3D4, 0x0A);
             cpu_io::outb(0x3D5, cpu_io::inb(0x3D5) & 0xE0 | 0);
@@ -74,14 +74,14 @@ impl Cursor {
         }
     }
 
-    fn disable(&self) {
+    pub fn disable(&self) {
         unsafe {
             cpu_io::outb(0x3D4, 0x0A);
             cpu_io::outb(0x3D5, 0x20);
         }
     }
 
-    fn move_cursor(&self, x: usize, y: usize) {
+    pub fn move_cursor(&self, x: usize, y: usize) {
         let pos: u16 = (y * BUFFER_WIDTH + x) as u16;
         unsafe {
             cpu_io::outb(0x3D4, 0x0F);
@@ -91,7 +91,7 @@ impl Cursor {
         }
     }
 
-    fn get_cursor(&self) -> Pos {
+    pub fn get_cursor(&self) -> Pos {
         let mut pos: u16 = 0;
         unsafe {
             cpu_io::outb(0x3D4, 0x0F);
@@ -116,7 +116,6 @@ pub struct Writer {
     cursor_port_b: Port,
     */
 }
-// TODO: make cursor separate struct
 
 impl Writer {
     pub fn write_byte(&mut self, byte: u8) {
@@ -185,7 +184,7 @@ impl fmt::Write for Writer {
 lazy_static! {
     pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer { // globally accessible writer using a spinning mutex
         column_position: 0,
-        color_code: ColorCode::new(Color::Yellow, Color::Black),
+        color_code: ColorCode::new(Color::Green, Color::Black),
         buffer: unsafe { &mut *(0xb8000 as *mut Buffer) }, // writing to this register is safe
                                                            // maps register to buffer struct, abstracts
                                                            // unsafeness away
@@ -212,6 +211,7 @@ macro_rules! print {
     };
 }
 
+// ! Depracate 
 #[macro_export]
 macro_rules! disable_cursor {
     () => {

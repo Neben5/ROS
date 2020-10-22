@@ -2,6 +2,9 @@
 #![no_std] // don't link the Rust standard library
 #![no_main] // disable all Rust-level entry points
 #![feature(llvm_asm)]
+#![feature(naked_functions)]
+#![feature(core_intrinsics)]
+#![feature(abi_x86_interrupt)]
 #![feature(custom_test_frameworks)]
 #![test_runner(test_runner::runner)] // test runnner is test_runner::runner
 #![reexport_test_harness_main = "test_main"] // test_main() is now test entrypoint
@@ -12,7 +15,7 @@ mod vga_buffer;
 use core::panic::PanicInfo;
 mod system;
 mod test_runner;
-use system::TimeDate;
+mod lib;
 
 // TODO: need to add exceptions >> paging >> virt mem >> fs >> usermode >> tty >> basic terminal >> proper vga
 
@@ -24,7 +27,7 @@ pub extern "C" fn _start() -> ! {
 
     // TODO: implement following (taken from linux 0.0.12):
     //* mem_init(main_memory_start,memory_end); Need to implement virtmem and paging
-    //* trap_init(); //!Exceptions
+    //* trap_init(); //! Exceptions
     //* blk_dev_init();
     //* chr_dev_init();
     //* tty_init(); tty will be painful
@@ -35,17 +38,18 @@ pub extern "C" fn _start() -> ! {
     //* floppy_init(); lol drivers
     //* sti(); interrupts are not *that* important
     //* move_to_user_mode(); usermodeeee
-
-    let mut val = system::CMOS.get(TimeDate::Seconds);
-    loop {
-        let temp = system::CMOS.get(TimeDate::Seconds);
-        if temp != val {
-            val = temp;
-            println!("{} : {}", system::CMOS.get(TimeDate::Minutes), val);
-        }
-    }
+    println!("Hello World!");
+    init();
+    unsafe {llvm_asm!("mov dx, 0; div dx" ::: "ax", "dx" : "volatile", "intel")}
+    loop {}
     // text mode cursor needs to be changed/disabled
 }
+
+fn init(){
+    lib::interrupts::init_idt();
+    lib::gdt::init();
+}
+
 /// This function is called on panic.
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {

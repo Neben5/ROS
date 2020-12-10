@@ -1,4 +1,6 @@
+#[macro_use]
 use crate::system::io::cpu_io;
+use crate::serial_println;
 
 #[cfg(test)]
 pub fn runner(tests: &[&dyn Fn()]) {

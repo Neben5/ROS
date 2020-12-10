@@ -21,6 +21,7 @@ mod lib;
 
 #[no_mangle] // don't mangle the name of this function at compile time so bootloader recognizes it
 pub extern "C" fn _start() -> ! {
+    init(); // must do before tests for them to be useful at all
     // entrypoint
     #[cfg(test)]
     test_main(); // test
@@ -39,8 +40,6 @@ pub extern "C" fn _start() -> ! {
     //* sti(); interrupts are not *that* important
     //* move_to_user_mode(); usermodeeee
     println!("Hello World!");
-    init();
-    unsafe {llvm_asm!("mov dx, 0; div dx" ::: "ax", "dx" : "volatile", "intel")}
     loop {}
     // text mode cursor needs to be changed/disabled
 }
@@ -55,7 +54,8 @@ fn init(){
 fn panic(info: &PanicInfo) -> ! {
     println!("{}", info);
     println!("Reloading kernel");
-    _start();
+    //_start();
+    loop{}
 }
 
 #[test_case]

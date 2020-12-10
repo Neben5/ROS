@@ -1,3 +1,4 @@
+#![macro_use]
 use uart_16550::SerialPort;
 use spin::Mutex;
 use lazy_static::lazy_static;
@@ -22,7 +23,7 @@ pub fn _print(args: ::core::fmt::Arguments) {
 #[macro_export]
 macro_rules! serial_print {
     ($($arg:tt)*) => {
-        $crate::serial::_print(format_args!($($arg)*));
+        $crate::system::io::serial::_print(format_args!($($arg)*));
     };
 }
 

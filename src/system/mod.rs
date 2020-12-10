@@ -1,3 +1,4 @@
+#![macro_use]
 use io::cpu_io;
 use lazy_static::lazy_static;
 
